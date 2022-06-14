@@ -22,7 +22,6 @@ manager = LoginManager(SECRET_KEY, token_url="/login", use_cookie=True)
 manager.cookie_name="auth"
 
 
-### password ###
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_hashed_password(plain_password):
@@ -31,7 +30,7 @@ def get_hashed_password(plain_password):
 def verify_password(plain_password, hashed_password):
     return pwd_ctx.verify(plain_password,hashed_password)
 
-### -------- ###
+
 def get_database():
     with DBContext() as db:    
         yield db
@@ -156,5 +155,7 @@ if __name__=="__main__":
     # with DBContext() as db:
     #     crud.delete_user_by_username(db, username="teca2")
     # db = SessionLocal()
+    # a:schemas.User = crud.get_user_by_username(db, "admin")
+    # print(type(a))
     # a = schemas.UserCreate(username="teca2", hash_pass=get_hashed_password("123"))
     # crud.create_user(db=db,id=3,user=a)
