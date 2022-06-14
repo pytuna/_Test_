@@ -16,7 +16,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY_64')
-ACCESS_TOKEN_EXPIRE_MINUTES=60 # 60 phut
+ACCESS_TOKEN_EXPIRE_MINUTES = 60*24*365
 
 manager = LoginManager(SECRET_KEY, token_url="/login", use_cookie=True)
 manager.cookie_name="auth"
@@ -66,9 +66,8 @@ app.add_exception_handler(NotAuthenticatedException, not_authenticated_exception
 
 @app.get("/")
 async def root(request: Request):
-    return {"request":"ROOT"}
-
-
+    client_host = request.client.host
+    return {"request":client_host}
 
 @app.post("/create/user", tags=["user"])
 async def create_user( id : int=Body(...), 
@@ -90,9 +89,8 @@ async def login():
     return {"login":"tecacom-admin"}
 
 @app.post('/login', tags = ['user'])
-async def login(request: Request, 
-form_data: OAuth2PasswordRequestForm = Depends(), 
-db: Session = Depends(get_database)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), 
+                    db: Session = Depends(get_database)):
     user:schemas.User = authenticate_user(
         username=form_data.username,
         password = form_data.password, db = db)
@@ -108,15 +106,15 @@ db: Session = Depends(get_database)):
         expires=access_token_expires)
     
     resp = JSONResponse(access_token, status_code=status.HTTP_200_OK)
-    #RedirectResponse("/tasks", status_code=status.HTTP_302_FOUND)
     manager.set_cookie(resp,access_token)
     return resp
 
 
-@app.get('/logout')
-async def protected_route(request: Request, user:schemas.User=Depends(manager)):
+@app.get('/logout', tags=["user"])
+async def protected_route(user:schemas.User=Depends(manager)):
     resp = JSONResponse({"status": "logout","user":user.username}, status_code=status.HTTP_200_OK)
     manager.delete_cookie(resp)
+    # resp.delete_cookie(key=manager.cookie_name)
     return resp
 
 @app.get("/home")
@@ -135,8 +133,8 @@ def role_normal(user:schemas.User = Depends(manager)):
     return user if (user.role =='admin' or user.role =='normal') else None
 
 
-@app.get("/admin")
-async def admin(request: Request, user: schemas.User = Depends(role_admin)):
+@app.get("/admin", tags=['authorization'])
+async def admin(user: schemas.User = Depends(role_admin)):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -144,9 +142,12 @@ async def admin(request: Request, user: schemas.User = Depends(role_admin)):
             headers={"WWW-Authorization": "Admin"},
         )
     return {"status":"Login with admin"}
-@app.get("/normal")
-async def normal(user: schemas.User = Depends(role_admin)):
+
+@app.get("/normal", tags=['authorization'])
+async def normal(user: schemas.User = Depends(role_normal)):
     pass
+
+
 if __name__=="__main__":
     uvicorn.run(app)
     # with DBContext() as db:
